@@ -1,4 +1,4 @@
-# Master's thesis — Design of a multi-mission large ADR in LEO
+# Master thesis — Design of a multi-mission large ADR in LEO
 
 This repository contains all the Python scripts developed as part of my master
 thesis. The thesis is separated into three phases: client choice, mission design
