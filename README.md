@@ -9,7 +9,7 @@ scripts read.
 ## Repository structure
 
 ```
-.
+
 ├── scripts/     runners and analysis modules
 ├── data/        input workbooks (catalogue and target list)
 └── outputs/     figures produced by the runners
@@ -54,7 +54,6 @@ Python 3.9 or later, with:
 
 ```bash
 pip install pandas numpy matplotlib openpyxl requests
-```
 ```
 
 
