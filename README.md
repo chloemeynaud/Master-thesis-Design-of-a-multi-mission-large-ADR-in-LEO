@@ -22,9 +22,9 @@ tables of one phase of the thesis:
 
 | Script | Phase |
 |---|---|
-| `run_client_selection.py` | Phase 1 — client choice |
-| `run_mission_design.py` | Phase 2 — mission design |
-| `run_system_design.py` | Phase 3 — preliminary system design |
+| `run_client_selection.py` | Phase 1 — Client choice |
+| `run_mission_design.py` | Phase 2 — Mission design |
+| `run_system_design.py` | Phase 3 — Preliminary system design |
 
 Every runner contains only the sequence of calls, in the same order as the
 corresponding chapter of the thesis, so that a figure in the report can be traced
@@ -57,6 +57,4 @@ pip install pandas numpy matplotlib openpyxl requests
 ```
 ```
 
-The Space-Track download is cached in `data/tle_cache.csv` after every batch, so
-an interrupted run resumes where it stopped.
 
