@@ -12,7 +12,7 @@ scripts read.
 .
 ├── scripts/     runners and analysis modules
 ├── data/        input workbooks (catalogue and target list)
-└── outputs/     figures and tables produced by the runners (not versioned)
+└── outputs/     figures produced by the runners
 ```
 
 ## Running the code
