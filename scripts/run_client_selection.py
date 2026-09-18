@@ -6,6 +6,8 @@ Stage 1 of the thesis: client choice and categorisation.
 This is the only file to run for this stage. It contains no analysis logic, only
 the sequence of calls, so that the order of the steps mirrors the order of the
 corresponding section of the thesis. Set the STEPS flags below to run a subset.
+Every figure is written to config.OUTPUT_DIR; the tables are printed to the
+console.
 
     python scripts/run_client_selection.py
 """
@@ -21,13 +23,10 @@ for _candidate in (_HERE.parent / "src", _HERE):
         sys.path.insert(0, str(_candidate))
         break
 
-import pandas as pd
-
 import config as cfg
 import figures as fg
 from config import by_name
-from catalogue import (load_catalogue, load_targets, select_cluster,
-                       subcluster_summary, summarise_clusters)
+from catalogue import load_catalogue, load_targets, subcluster_summary
 from scoring import score_clusters
 
 # ---------------------------------------------------------------------------
@@ -37,7 +36,6 @@ STEPS = {
     "refinement": True,      # 2.3 narrowing each cluster to an inclination band
     "targets": True,         # 2.4 the selected objects inside each cluster
     "raan": True,            # 2.5 RAAN refinement into sub-clusters
-    "export": True,          # write the tables used in the thesis
 }
 SHOW = True                  # False to only write PNGs, useful for a batch run
 
@@ -52,8 +50,7 @@ INC_HIST_CLUSTERS = [
 
 # Clusters that get a target scatter. Only the two SSO clusters are kept: the
 # others hold 50 to 139 objects that are all SL-8 R/B of the same mass and the
-# same shape, so the scatter has nothing to distinguish between them. Their
-# content is in the Excel export instead.
+# same shape, so the scatter has nothing to distinguish between them.
 SCATTER_CLUSTERS = [cfg.by_name(cfg.CLUSTERS_REFINED, name)
                     for name in ("RB_SSO", "PL_SSO")]
 
@@ -96,14 +93,11 @@ def main():
 
     # -- 2.2 Cluster scoring ----------------------------------------------
     # The AHP pairwise comparison matrix is built by hand, outside this
-    # repository, from the _AHP levels printed here. The scores are also
-    # exported with the other tables (see "export").
-    scores = None
+    # repository, from the _AHP levels printed here.
     if STEPS["scoring"]:
         scores = score_clusters(catalogue, cfg.CLUSTERS_WIDE)
         print("\nCluster scores")
         print(scores.to_string(index=False))
-
 
     # -- 2.3 Cluster refinement -------------------------------------------
     # Mass-weighted inclination distribution over the wide cluster windows: bar
@@ -136,7 +130,6 @@ def main():
     # sit close together on the wheel share a plane orientation; the groups
     # themselves are defined in config.SUBCLUSTERS, on RAAN and on platform
     # commonality together.
-    raan_tables = []
     if STEPS["raan"]:
         for cluster in RAAN_CLUSTERS:
             targets = load_targets(cluster.target_sheet)
@@ -155,26 +148,6 @@ def main():
             summary = subcluster_summary(catalogue, cluster, targets, groups)
             print(f"\nSub-clusters - {cluster.label}")
             print(summary.to_string(index=False))
-            raan_tables.append(summary)
-
-    # -- Tables for the thesis --------------------------------------------
-    if STEPS["export"]:
-        out = cfg.OUTPUT_DIR / "client_selection_tables.xlsx"
-        with pd.ExcelWriter(out, engine="openpyxl") as writer:
-            summarise_clusters(catalogue, cfg.CLUSTERS_WIDE).to_excel(
-                writer, sheet_name="wide_clusters", index=False)
-            summarise_clusters(catalogue, cfg.CLUSTERS_REFINED).to_excel(
-                writer, sheet_name="refined_clusters", index=False)
-            if scores is not None:
-                scores.to_excel(writer, sheet_name="cluster_scores",
-                                index=False)
-            if raan_tables:
-                pd.concat(raan_tables, ignore_index=True).to_excel(
-                    writer, sheet_name="subclusters", index=False)
-            for cluster in cfg.CLUSTERS_REFINED:
-                select_cluster(catalogue, cluster).to_excel(
-                    writer, sheet_name=cluster.name[:31], index=False)
-        print(f"\nTables written to {out}")
 
 
 if __name__ == "__main__":

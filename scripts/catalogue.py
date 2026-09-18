@@ -234,25 +234,6 @@ def select_cluster(cat: pd.DataFrame, cluster: cfg.Cluster) -> pd.DataFrame:
     ].copy()
 
 
-def summarise_clusters(cat: pd.DataFrame,
-                       clusters: list[cfg.Cluster]) -> pd.DataFrame:
-    """One row per cluster: object count, total mass, mean mass, mean area."""
-    rows = []
-    for c in clusters:
-        s = select_cluster(cat, c)
-        rows.append({
-            "CLUSTER": c.name,
-            "LABEL": c.label,
-            "OBJ_TYPE": c.obj_type,
-            "N_OBJECTS": len(s),
-            "N_WITH_MASS": int(s["MASS_KG"].notna().sum()),
-            "TOTAL_MASS_T": s["MASS_KG"].sum() / 1000.0,
-            "MEAN_MASS_KG": s["MASS_KG"].mean(),
-            "MEAN_AREA_M2": s["AREA_M2"].mean(),
-        })
-    return pd.DataFrame(rows)
-
-
 def subcluster_summary(cat: pd.DataFrame, cluster: cfg.Cluster,
                        targets: pd.DataFrame, groups: dict) -> pd.DataFrame:
     """One row per RAAN sub-cluster: extent in altitude, inclination and RAAN.
