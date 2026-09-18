@@ -58,30 +58,6 @@ def collision_score(subset: pd.DataFrame, cluster: cfg.Cluster) -> float:
     return float(collision_probability_per_object(subset, cluster).mean())
 
 
-def cluster_collision_rate(subset: pd.DataFrame, cluster: cfg.Cluster) -> float:
-    """Sum of P_i over the cluster: expected collisions/yr of the whole cluster.
-
-    Not used in the AHP. Kept for the sensitivity analysis only.
-    """
-    if subset.empty:
-        return 0.0
-    p = collision_probability_per_object(subset, cluster)
-    # Objects with unknown area are counted with the mean of the cluster
-    return float(p.mean() * len(subset))
-
-
-def legacy_collision_proxy(subset: pd.DataFrame,
-                           cluster: cfg.Cluster = None) -> float:
-    """Previous proxy, N * mean(area) * mean(mass) / 1000.
-
-    Not used in the AHP. Kept for the sensitivity analysis only.
-    """
-    if subset.empty:
-        return 0.0
-    return (len(subset) * subset["AREA_M2"].mean()
-            * subset["MASS_KG"].mean() / 1000.0)
-
-
 # ---------------------------------------------------------------------------
 # Mass
 # ---------------------------------------------------------------------------
@@ -112,13 +88,6 @@ SCORE_FUNCS = {
     "COLLISION_SCORE": collision_score,
     "MASS_SCORE": mass_score,
     "TOTAL_MASS_T": total_mass_score,
-}
-
-# Alternative collision metrics compared in the sensitivity analysis.
-COLLISION_VARIANTS = {
-    "PER_OBJECT": collision_score,
-    "CLUSTER_TOTAL": cluster_collision_rate,
-    "LEGACY_PROXY": legacy_collision_proxy,
 }
 
 
@@ -159,20 +128,4 @@ def score_clusters(cat: pd.DataFrame, clusters: list[cfg.Cluster],
     df = pd.DataFrame(rows)
     for score_name in SCORE_FUNCS:
         df[f"{score_name}_AHP"] = to_ahp_levels(df[score_name], n_levels)
-    return df
-
-
-def collision_variants(cat: pd.DataFrame, clusters: list[cfg.Cluster],
-                       n_levels: int = 5) -> pd.DataFrame:
-    """Raw value and AHP level of every collision metric, for every cluster."""
-    rows = []
-    for c in clusters:
-        subset = select_cluster(cat, c)
-        row = {"CLUSTER": c.name}
-        for name, func in COLLISION_VARIANTS.items():
-            row[name] = func(subset, c)
-        rows.append(row)
-    df = pd.DataFrame(rows)
-    for name in COLLISION_VARIANTS:
-        df[f"{name}_AHP"] = to_ahp_levels(df[name], n_levels)
     return df

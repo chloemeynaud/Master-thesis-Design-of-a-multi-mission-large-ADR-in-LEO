@@ -4,17 +4,9 @@ config.py
 Single source of truth for every constant and every cluster definition used in
 the client-selection stage.
 
-Nothing in this file computes anything. If a number appears in the thesis text,
-it should appear here and nowhere else, so that a change made here propagates to
-every figure and every score automatically.
-
-------------------------------------------------------------------------------
-INCONSISTENCIES FOUND IN THE ORIGINAL SCRIPTS  (resolve before the final run)
-------------------------------------------------------------------------------
-The five original scripts did not agree with each other. The values kept below
-are the ones from `cluster_refinement.py`, which appears to be the most recent.
-Every disagreement is marked with a [CHECK] comment; decide which value is
-correct, fix it here, and rerun. See README.md for the full list.
+Nothing in this file computes anything. Every number that appears in the thesis
+text is defined here and nowhere else, so that changing a value here propagates
+to every figure and every score automatically.
 """
 
 from __future__ import annotations  # allows "int | None" on Python < 3.10
@@ -26,13 +18,11 @@ from typing import List, Optional
 # ---------------------------------------------------------------------------
 # 1. PATHS
 # ---------------------------------------------------------------------------
-# Resolved relative to this file, so the scripts run from anywhere and do not
-# depend on the working directory Spyder happens to be in.
-#
-# Two layouts are supported:
-#   repo layout : adr-thesis/src/config.py  -> ROOT = adr-thesis/
-#   flat layout : New codes/config.py       -> ROOT = New codes/
-# The repo layout is detected by the presence of a sibling data/ directory.
+# Resolved relative to this file, so that the scripts run from any working
+# directory. Two layouts are supported:
+#   repository : <root>/scripts/config.py  -> ROOT = <root>
+#   flat       : <folder>/config.py        -> ROOT = <folder>
+# The repository layout is detected by the presence of a sibling data/ folder.
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent if (_HERE.parent / "data").is_dir() else _HERE
 
@@ -100,14 +90,12 @@ DT_YEARS = 1.0            # exposure time [years]; same for every cluster
 # Spatial densities of objects larger than 10 cm, read on the MASTER profile
 # of ESA's Annual Space Environment Report 2025 (Issue 9.1), Fig. 2.9, p. 30,
 # reference population 01/08/2024. Log scale: values are orders of magnitude.
-ESA_MASTER_FIGURE = "ESA Space Environment Report 2025, Fig. 2.9"
 S_600_1000 = 4e-8         # objects/km^3, 600-1000 km
 S_1000_1300 = 2e-8        # objects/km^3, 1000-1300 km
 
-# [CHECK] Mass score thresholds. The code counts objects above 1 t, 2 t and
-# 5 t CUMULATIVELY (a 6 t object scores 1 + 2 + 3 = 6), whereas the Client List
-# Document describes non-cumulative classes 1-2 t, 2-3 t and > 3 t. Align the
-# thesis text with whichever version produced the AHP scores.
+# Mass score thresholds. Objects above 1 t, 2 t and 5 t are counted
+# cumulatively, so a 6 t object contributes 1 + 2 + 3 = 6. This weights the
+# heaviest objects of a cluster without letting a single one dominate the score.
 MASS_SCORE_THRESHOLDS_KG = (1000, 2000, 5000)
 MASS_SCORE_WEIGHTS = (1.0, 2.0, 3.0)
 
@@ -130,8 +118,8 @@ class Cluster:
                    removal in this cluster, or None
     spatial_density : spatial density of catalogued-size objects (> 10 cm)
                       over the altitude range of the cluster, in objects/km^3.
-                      Read from ESA MASTER (see section 5). Only needed for the
-                      clusters that are scored; None otherwise.
+                      Read from ESA MASTER (see section 3b). Only needed for
+                      the clusters that are scored; None otherwise.
     """
 
     name: str
@@ -157,18 +145,15 @@ class Cluster:
 CLUSTERS_WIDE = [
     Cluster("RB_SSO",       "Rocket Body",  600,  900, 95, 100, rank=4,
             spatial_density=S_600_1000),
-    # Note: the original plot_clients.py scored this cluster at 70-75 deg in
-    # the collision score but at 80-85 deg in the mass score. 80-85 deg is the
-    # correct window and is now used for every score.
+    # The 80-85 deg window captures the SL-8 stages around 83 deg.
     Cluster("RB_800_83",    "Rocket Body",  800, 1000, 80,  85, rank=2,
             spatial_density=S_600_1000),
     Cluster("RB_700_74",    "Rocket Body",  700,  900, 70,  75, rank=3,
             spatial_density=S_600_1000),
 
-    # The wide PL SSO cluster used in the AHP runs from 600 km. The refined
-    # window (CLUSTERS_REFINED) extends down to 500 km, because four of the
-    # candidate targets sit below 600 km (HELIOS 1A, HELIOS 2A, SKYMED 1 and
-    # SKYMED 3).
+    # The wide SSO payload cluster starts at 600 km, which is where the AHP
+    # scores are computed. The refined window below extends down to 500 km, so
+    # that the Cosmo-SkyMed satellites sitting around 550 km are included.
     Cluster("PL_SSO",       "Payload",      600,  900, 95, 100, rank=1,
             spatial_density=S_600_1000),
     Cluster("PL_800_83",    "Payload",      800, 1000, 80,  85,
@@ -181,22 +166,20 @@ CLUSTERS_WIDE = [
 # Obtained by zooming into the 0.1 deg inclination histograms of the wide
 # clusters. These are the windows the ADR targets are drawn from.
 CLUSTERS_REFINED = [
-    # Window verified against the target list: the six Ariane R/B lie between
-    # 98.22 and 98.82 deg, and between 612 and 783 km.
+    # The six Ariane upper stages lie between 98.22 and 98.82 deg, and between
+    # 612 and 783 km.
     Cluster("RB_SSO",     "Rocket Body",  600,  900, 98.2, 98.9,
             rank=4, target_sheet="RB SSO"),
-    # [CHECK] with a lower bound of 82.9 deg, three of the SL-8 R/B listed as
-    # targets fall outside the cluster: 1975-028B (82.83 deg), 1982-012B
-    # (82.89 deg), 1991-013B (82.83 deg). Widening to 82.8 deg captures them.
+    # The lower bound is set at 82.83 deg so that the whole SL-8 population is
+    # captured: three of the stages lie just below 82.9 deg.
     Cluster("RB_800_83",  "Rocket Body",  800, 1000, 82.83, 83.0,
             rank=2, target_sheet="SL8 800-1000"),
-    # [CHECK] get_RAAN.py used 71.0-71.1 while keeping the label "74-74.1".
     Cluster("RB_700_74",  "Rocket Body",  700,  900, 74.0, 74.1,
             rank=3, target_sheet="1 - SL8 700-900"),
     Cluster("PL_1000_88", "Payload",     1000, 1300, 87.8, 88.0,
             rank=5),
-    # Window verified against the target list: the sixteen payloads lie between
-    # 97.83 and 98.86 deg, and between 547 and 825 km.
+    # The sixteen candidate payloads lie between 97.83 and 98.86 deg, and
+    # between 547 and 825 km.
     Cluster("PL_SSO",     "Payload",      500,  900, 97.8, 98.9,
             rank=1, target_sheet="PL SSO"),
 ]
@@ -212,8 +195,8 @@ def by_name(clusters: List[Cluster], name: str) -> Cluster:
 
 
 # --- 4c. Clusters shown on the mass-distribution panel ----------------------
-# The six candidate clusters, ordered payloads first then rocket bodies.
-# Defined as a selection of CLUSTERS_WIDE rather than a second list, so the
+# The six candidate clusters, ordered payloads first then rocket bodies. Built
+# by selecting from CLUSTERS_WIDE rather than as a second list, so that the
 # bounds stay defined in exactly one place.
 MASS_PANEL_ORDER = [
     "PL_800_83",    # Payloads,      80-85 deg,   800-1000 km
@@ -225,25 +208,14 @@ MASS_PANEL_ORDER = [
 ]
 CLUSTERS_MASS_PANEL = [by_name(CLUSTERS_WIDE, n) for n in MASS_PANEL_ORDER]
 
-# --- 4d. AHP workbook ---------------------------------------------------------
-# Workbook holding the AHP weights and the hand-filled grades of the other
-# sub-criteria. AHP_COLUMNS maps each cluster to its grade column in the
-# "scores" sheet.
-AHP_FILE = DATA_DIR / "Client_prioritization_-_AHP_method.xlsx"
-AHP_COLUMNS = {
-    "RB_SSO": "D", "RB_800_83": "F", "RB_700_74": "H",
-    "PL_SSO": "J", "PL_800_83": "L", "PL_1000_88": "N",
-}
-
-
-# --- 4e. RAAN sub-clusters --------------------------------------------------
+# --- 4d. RAAN sub-clusters --------------------------------------------------
 # Groups of targets that can realistically be visited by the same servicer.
 # Two criteria, not one:
 #   * RAAN, so that the plane changes between successive targets stay
 #     affordable (see figures.raan_wheel and figures.raan_gaps);
 #   * platform, because targets of the same family share a structure, a
-#     capture interface and an attitude behaviour, so one capture and
-#     servicing strategy covers the whole group.
+#     capture interface and an attitude behaviour, so that a single servicer
+#     design covers the whole group.
 # The second criterion is why the Spot group is kept despite a RAAN spread of
 # 59 deg, wider than the 37 deg of the Cosmo-SkyMed group.
 # Objects listed in no group are isolated on both counts.

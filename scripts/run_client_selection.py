@@ -13,8 +13,8 @@ corresponding section of the thesis. Set the STEPS flags below to run a subset.
 import sys
 from pathlib import Path
 
-# Make src/ importable. Works both when the files sit in src/ + scripts/ and
-# when they are all in one folder (as when opened directly in Spyder).
+# Make the modules importable whether they sit in a src/ folder next to this
+# script or alongside it in the same folder.
 _HERE = Path(__file__).resolve().parent
 for _candidate in (_HERE.parent / "src", _HERE):
     if (_candidate / "config.py").is_file():
@@ -26,8 +26,8 @@ import pandas as pd
 import config as cfg
 import figures as fg
 from config import by_name
-from catalogue import (load_catalogue, load_targets, query_objects,
-                       select_cluster, subcluster_summary, summarise_clusters)
+from catalogue import (load_catalogue, load_targets, select_cluster,
+                       subcluster_summary, summarise_clusters)
 from scoring import score_clusters
 
 # ---------------------------------------------------------------------------
@@ -95,10 +95,10 @@ def main():
                                save_as=f"heatmap_mass_{tag}.png", show=SHOW)
 
     # -- 2.2 Cluster scoring ----------------------------------------------
-    # The AHP matrix itself lives in Client_prioritization_AHP_method.xlsx and
-    # is filled in by hand with the _AHP levels printed here. The scores are
-    # also exported with the other tables (see "export").
-    scores =  None
+    # The AHP pairwise comparison matrix is built by hand, outside this
+    # repository, from the _AHP levels printed here. The scores are also
+    # exported with the other tables (see "export").
+    scores = None
     if STEPS["scoring"]:
         scores = score_clusters(catalogue, cfg.CLUSTERS_WIDE)
         print("\nCluster scores")

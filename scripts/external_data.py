@@ -5,20 +5,18 @@ Retrieval of the two external data sources: ESA DISCOSweb (physical properties)
 and Space-Track (orbital elements, used here for the RAAN of the cluster
 objects).
 
-Merges `discos_getdata.py` and the download half of `get_RAAN.py`. Both were
-one-shot scripts; they are functions here so they can be called from a runner
-and, more importantly, so that the credentials are no longer written in the
-source.
+Both downloads are written as functions so that they can be called from a
+runner, and so that the credentials stay out of the source.
 
 CREDENTIALS
 -----------
-Never hard-code a token. Set them in the environment before running:
+Credentials are read from the environment. Set them before running:
 
     export DISCOS_TOKEN="..."
     export SPACETRACK_USER="you@example.com"
     export SPACETRACK_PASS="..."
 
-or put them in a `.env` file at the repository root (which .gitignore excludes)
+or put them in a `.env` file at the repository root, which .gitignore excludes,
 and load it with python-dotenv.
 """
 

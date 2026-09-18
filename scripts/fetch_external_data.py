@@ -14,8 +14,8 @@ import argparse
 import sys
 from pathlib import Path
 
-# Make src/ importable. Works both when the files sit in src/ + scripts/ and
-# when they are all in one folder (as when opened directly in Spyder).
+# Make the modules importable whether they sit in a src/ folder next to this
+# script or alongside it in the same folder.
 _HERE = Path(__file__).resolve().parent
 for _candidate in (_HERE.parent / "src", _HERE):
     if (_candidate / "config.py").is_file():

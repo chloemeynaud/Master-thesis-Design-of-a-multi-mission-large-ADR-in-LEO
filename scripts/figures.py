@@ -3,18 +3,19 @@ figures.py
 ==========
 Every figure of the client-selection stage, one function per figure type.
 
-Each function takes the catalogue (and a Cluster where relevant), returns the
-matplotlib Figure, and never loads or filters data itself. Consolidations with
-respect to the original scripts:
+Each function takes the catalogue, and a Cluster where relevant, returns the
+matplotlib Figure, and never loads or filters data itself. The figures produced
+are:
 
-  * `heatmap_alt_inc`        replaces the two nearly identical heatmap blocks of
-                             plot_clients.py (count-coloured and mass-coloured)
-  * `inclination_histogram`  replaces three implementations spread over
-                             cluster_refinement.py and recup_code_clientdoc.py
-  * `mass_class_panel`       replaces mass_distribution.py in full, which was a
-                             duplicate of one cell of cluster_refinement.py
-  * `cluster_scatter`        replaces the two shape/mass/cross-section scatters,
-                             with the ADR target rings as an option
+  * `heatmap_alt_inc`        population of LEO over the altitude-inclination
+                             plane, coloured by object count or by total mass
+  * `inclination_histogram`  inclination distribution inside a cluster, with the
+                             bars weighted by mass
+  * `mass_class_panel`       breakdown of each cluster by mass class
+  * `cluster_scatter`        shape, mass and cross-section of the objects of a
+                             cluster, with the selected ADR targets ringed
+  * `raan_wheel`             orientation of the orbital planes of the targets,
+                             with the RAAN sub-clusters marked
 
 All functions accept `save_as=` to write the figure to config.OUTPUT_DIR
 instead of, or in addition to, showing it.
@@ -71,28 +72,6 @@ def _finish(fig, save_as=None, show=True):
 # ---------------------------------------------------------------------------
 # 1. Population overview
 # ---------------------------------------------------------------------------
-def band_distribution(cat, obj_type, axis="ALT_BAND", save_as=None, show=True):
-    """Object count per altitude band or per inclination band."""
-    labels = (cfg.ALT_BAND_LABELS if axis == "ALT_BAND"
-              else cfg.INC_BAND_LABELS)
-    xlabel = ("Mean altitude band (km)" if axis == "ALT_BAND"
-              else "Inclination band (deg)")
-    colour = "steelblue" if axis == "ALT_BAND" else "darkorange"
-
-    sub = cat[cat["OBJ_TYPE"] == obj_type]
-    counts = (sub.dropna(subset=[axis]).groupby(axis, observed=False).size()
-                 .reindex(labels, fill_value=0))
-
-    fig, ax = plt.subplots(figsize=(14, 6))
-    ax.bar(counts.index, counts.values, color=colour)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel("Number of objects")
-    ax.set_title(f"{obj_type} - distribution by {xlabel.lower()}")
-    ax.set_xticks(range(len(counts)))
-    ax.set_xticklabels(counts.index, rotation=45, ha="right")
-    ax.grid(axis="y", alpha=0.3)
-    fig.tight_layout()
-    return _finish(fig, save_as, show)
 
 
 def heatmap_alt_inc(cat, obj_type, colour_by="count", save_as=None, show=True):
@@ -104,8 +83,6 @@ def heatmap_alt_inc(cat, obj_type, colour_by="count", save_as=None, show=True):
                 'mass' colours them by the total mass in tonnes.
                 In both cases the number printed in each cell is the object
                 count, and empty cells are left white.
-
-    This single function covers both heatmaps of the original plot_clients.py.
     """
     sub = cat[cat["OBJ_TYPE"] == obj_type].dropna(subset=["ALT_BAND",
                                                           "INC_BAND"])
@@ -231,48 +208,6 @@ def inclination_histogram(cat, cluster, bin_width=None, tick_step=None,
     ax.set_xlabel("Inclination (deg)")
     ax.set_ylabel("Object count")
     ax.set_title(f"{cluster.label}\n{subtitle}")
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    return _finish(fig, save_as, show)
-
-
-def inclination_overlay(cat, clusters, bin_width=0.1, tick_step=0.2,
-                        save_as=None, show=True):
-    """Normalised inclination distributions of several clusters, overlaid."""
-    fig, ax = plt.subplots(figsize=(9, 5))
-    inc_lo = min(c.inc_lo for c in clusters)
-    inc_hi = max(c.inc_hi for c in clusters)
-    bins = np.arange(inc_lo, inc_hi + bin_width, bin_width)
-
-    for c in clusters:
-        subset = select_cluster(cat, c)
-        ax.hist(subset["INCLINATION"], bins=bins, alpha=0.45,
-                label=f"{c.label} (N={len(subset)})", density=True)
-
-    ax.set_xticks(np.arange(inc_lo, inc_hi, tick_step))
-    ax.set_xlabel("Inclination (deg)")
-    ax.set_ylabel("Density")
-    ax.set_title("Inclination distribution by cluster")
-    ax.legend(fontsize=8)
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    return _finish(fig, save_as, show)
-
-
-def altitude_histogram(cat, cluster, bin_width=20, save_as=None, show=True):
-    """Mean-altitude distribution inside a cluster, in bins of `bin_width` km."""
-    subset = select_cluster(cat, cluster)
-    if subset.empty:
-        print(f"{cluster.label}: no data")
-        return None
-
-    bins = np.arange(cluster.alt_lo, cluster.alt_hi + bin_width, bin_width)
-    fig, ax = plt.subplots(figsize=(9, 5))
-    ax.hist(subset["ALT_MEAN"], bins=bins, alpha=0.75, color="steelblue",
-            edgecolor="white", linewidth=0.3)
-    ax.set_xlabel("Mean altitude (km)")
-    ax.set_ylabel("Object count")
-    ax.set_title(f"{cluster.label}\nN = {len(subset)}")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return _finish(fig, save_as, show)
@@ -476,78 +411,7 @@ def cluster_scatter(cat, cluster, targets=None, label_offsets=None,
 
 
 # ---------------------------------------------------------------------------
-# 4. Tables
-# ---------------------------------------------------------------------------
-TABLE_HEADERS = {
-    "OBJECT_ID": "COSPAR ID", "SATNAME": "Name", "COUNTRY": "Country",
-    "OBJ_TYPE": "Type", "SHAPE": "Shape", "RCS_SIZE": "RCS",
-    "WIDTH_M": "Width (m)", "HEIGHT_M": "Height (m)",
-    "DIAMETER_M": "Diameter (m)", "SPAN_M": "Span (m)",
-    "INCLINATION": "Inc (deg)", "ALT_MEAN": "Alt (km)",
-    "MASS_KG": "Mass (kg)", "LAUNCH_YEAR": "Year",
-}
-
-
-def object_table(df, title="", rows_per_page=30, save_as=None, show=True):
-    """Render a query result as one or more paginated matplotlib tables.
-
-    Only useful to paste a short list into a slide. For anything longer, export
-    the DataFrame with `df.to_excel(...)` and typeset it in LaTeX instead.
-    """
-    if df.empty:
-        print("No matching objects.")
-        return []
-
-    fmt = df.copy()
-    for c in ["INCLINATION", "ALT_MEAN", "WIDTH_M", "HEIGHT_M", "DIAMETER_M",
-              "SPAN_M"]:
-        if c in fmt:
-            fmt[c] = fmt[c].map(lambda x: f"{x:.2f}" if pd.notna(x) else "-")
-    if "MASS_KG" in fmt:
-        fmt["MASS_KG"] = fmt["MASS_KG"].map(
-            lambda x: f"{x:.0f}" if pd.notna(x) else "-")
-    if "LAUNCH_YEAR" in fmt:
-        fmt["LAUNCH_YEAR"] = fmt["LAUNCH_YEAR"].map(
-            lambda x: f"{int(x)}" if pd.notna(x) else "-")
-    fmt = fmt.fillna("-").astype(str)
-
-    headers = [TABLE_HEADERS.get(c, c) for c in fmt.columns]
-    rows = fmt.values.tolist()
-    n_pages = max(1, (len(rows) + rows_per_page - 1) // rows_per_page)
-    figs = []
-
-    total_mass = pd.to_numeric(df.get("MASS_KG"), errors="coerce").sum()
-    for page in range(n_pages):
-        chunk = rows[page * rows_per_page:(page + 1) * rows_per_page]
-        fig, ax = plt.subplots(figsize=(20, max(4, 0.4 * len(chunk) + 2.5)))
-        ax.axis("off")
-        page_label = f" - page {page + 1}/{n_pages}" if n_pages > 1 else ""
-        ax.set_title(f"{title}{page_label}\n({len(df)} objects, "
-                     f"{total_mass / 1000:.1f} t total)",
-                     fontsize=13, fontweight="bold", loc="left")
-
-        table = ax.table(cellText=chunk, colLabels=headers, loc="center",
-                         cellLoc="center")
-        table.auto_set_font_size(False)
-        table.set_fontsize(8)
-        table.scale(1, 1.3)
-        for j in range(len(headers)):
-            table[0, j].set_facecolor("#1a3e5c")
-            table[0, j].set_text_props(color="white", fontweight="bold",
-                                       fontsize=9)
-        for i in range(1, len(chunk) + 1):
-            bg = "#f0f4f8" if i % 2 == 0 else "white"
-            for j in range(len(headers)):
-                table[i, j].set_facecolor(bg)
-        fig.tight_layout()
-        name = None if save_as is None else save_as.replace(
-            ".png", f"_p{page + 1}.png")
-        figs.append(_finish(fig, name, show))
-    return figs
-
-
-# ---------------------------------------------------------------------------
-# 5. RAAN-based refinement
+# 4. RAAN-based refinement
 # ---------------------------------------------------------------------------
 def raan_wheel(cat, cluster, targets, groups=None, label_col="SATNAME",
                min_sep=4.0, r_point=1.0, r_label=1.10, r_arc=0.88,

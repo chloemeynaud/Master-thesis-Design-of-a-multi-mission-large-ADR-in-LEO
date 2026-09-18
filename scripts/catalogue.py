@@ -3,14 +3,9 @@ catalogue.py
 ============
 Loading and preparation of the object catalogue.
 
-This module replaces the block of code that was copy-pasted at the top of
-`plot_clients.py`, `cluster_refinement.py`, `mass_distribution.py`,
-`recup_code_clientdoc.py` and `get_RAAN.py`.
-
-The key change is that rocket bodies and payloads are held in ONE DataFrame
-with an `OBJ_TYPE` column, instead of two DataFrames (`rb_leo`, `pl_leo`)
-carried side by side. Every downstream function then takes a single catalogue
-and a Cluster, which removes the need to duplicate each analysis twice.
+Rocket bodies and payloads are held in a single DataFrame with an `OBJ_TYPE`
+column rather than in two separate tables. Every downstream function then takes
+one catalogue and one Cluster, so that no analysis has to be written twice.
 
 Typical use
 -----------
@@ -37,9 +32,9 @@ import config as cfg
 def _mean_altitude(df: pd.DataFrame) -> pd.Series:
     """Mean altitude in km, as the average of apogee and perigee altitudes.
 
-    Computed rather than read from the MEAN ALTITUDE / MEAN_ALTITUDE column,
-    because that column is named differently in the two sheets of the source
-    workbook and is not always populated.
+    Recomputed here rather than read from the workbook, because the mean
+    altitude column is named differently in the two sheets and is not filled in
+    for every object.
     """
     return (df["APOGEE"] + df["PERIGEE"]) / 2.0
 
@@ -69,10 +64,10 @@ def _mean_area(df: pd.DataFrame) -> pd.Series:
     area an object presents to a random impactor, and is the quantity used in
     the collision score.
 
-    NOTE: this is a different definition from _cross_section above. The
-    original scripts used the averaged version for the collision score and the
-    geometric version for the scatter plots. Both are kept so the difference is
-    explicit, but the thesis should state which one is used where.
+    This is a different quantity from _cross_section above, which gives the
+    purely geometric area. The averaged estimate is used for the collision
+    score, where the orientation of the object is unknown, and the geometric
+    one for the marker sizes of the scatter plots.
     """
     parts = []
     if {"WIDTH_M", "HEIGHT_M"} <= set(df.columns):
@@ -199,8 +194,8 @@ def load_targets(sheet: str, path=None):
     Blank separator rows are dropped and duplicate COSPAR IDs removed.
 
     Returns None, with a warning, if the workbook or the sheet is missing,
-    rather than raising. A missing target list must not stop the rest of the
-    run: the scatter plots are still worth producing without the rings.
+    rather than raising: the scatter plots are still worth producing without
+    the target rings.
     """
     path = Path(path or cfg.TARGETS_FILE)
     if not path.is_file():
@@ -227,8 +222,8 @@ def load_targets(sheet: str, path=None):
 def select_cluster(cat: pd.DataFrame, cluster: cfg.Cluster) -> pd.DataFrame:
     """Return the objects of `cat` that fall inside `cluster`.
 
-    Bounds are inclusive on the low side and exclusive on the high side, which
-    is the convention used throughout the original scripts.
+    Bounds are inclusive on the low side and exclusive on the high side, so
+    that adjacent clusters never count the same object twice.
     """
     return cat[
         (cat["OBJ_TYPE"] == cluster.obj_type)
@@ -237,35 +232,6 @@ def select_cluster(cat: pd.DataFrame, cluster: cfg.Cluster) -> pd.DataFrame:
         & (cat["INCLINATION"] >= cluster.inc_lo)
         & (cat["INCLINATION"] < cluster.inc_hi)
     ].copy()
-
-
-def query_objects(cat: pd.DataFrame, alt_lo, alt_hi, inc_lo, inc_hi,
-                  mass_lo=None, mass_hi=None, obj_type=None, country=None,
-                  sort_by="MASS_KG") -> pd.DataFrame:
-    """Free-form query over the catalogue, for exploratory work.
-
-    Returns the matching objects sorted by decreasing mass. Use
-    `figures.object_table` to render the result as a figure, or
-    `.to_excel(...)` to export it.
-    """
-    mask = (
-        (cat["ALT_MEAN"] >= alt_lo) & (cat["ALT_MEAN"] < alt_hi)
-        & (cat["INCLINATION"] >= inc_lo) & (cat["INCLINATION"] < inc_hi)
-    )
-    if obj_type is not None:
-        mask &= cat["OBJ_TYPE"] == obj_type
-    if mass_lo is not None:
-        mask &= cat["MASS_KG"] >= mass_lo
-    if mass_hi is not None:
-        mask &= cat["MASS_KG"] < mass_hi
-    if country is not None:
-        mask &= cat["COUNTRY"].str.upper() == country.upper()
-
-    cols = ["OBJECT_ID", "SATNAME", "COUNTRY", "OBJ_TYPE", "SHAPE", "RCS_SIZE",
-            "WIDTH_M", "HEIGHT_M", "DIAMETER_M", "SPAN_M", "INCLINATION",
-            "ALT_MEAN", "MASS_KG", "LAUNCH_YEAR"]
-    out = cat.loc[mask, [c for c in cols if c in cat.columns]]
-    return out.sort_values(sort_by, ascending=False).reset_index(drop=True)
 
 
 def summarise_clusters(cat: pd.DataFrame,
@@ -291,8 +257,7 @@ def subcluster_summary(cat: pd.DataFrame, cluster: cfg.Cluster,
                        targets: pd.DataFrame, groups: dict) -> pd.DataFrame:
     """One row per RAAN sub-cluster: extent in altitude, inclination and RAAN.
 
-    This is the table the summary table of the thesis is filled from. Targets
-    listed in no group are collected in a final 'isolated' row.
+    Targets listed in no group are collected in a final 'isolated' row.
     """
     cols = ["OBJECT_ID", "ALT_MEAN", "INCLINATION"]
     df = targets.merge(cat[cols], on="OBJECT_ID", how="left")
